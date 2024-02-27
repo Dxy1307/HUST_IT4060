@@ -122,4 +122,118 @@
 
 ### 1.3 Lập trình trong môi trường Ubuntu/Linux
 
+## Chương 2: Lập trình socket cơ bản
+
+### 2.1 Khái niệm socket
+- Socket là điểm cuối (end-point) trong liên kết truyền thông 2 chiều (two-way communication) biểu diễn kết nối giữa client-server
+- Các lớp socket được ràng buộc với một cổng port (thể hiện là một con số cụ thể) để các tầng TCP có thể định danh ứng dụng mà dữ liệu sẽ được gửi tới
+- Socket là giao diện lập trình mạng được hỗ trợ bởi nhiều ngôn ngữ, hệ điều hành khác nhau
+- Socket có thể được sử dụng để chờ các kết nối trong ứng dụng server hoặc để thiết lập kết nối trong ứng dụng client
+
+### 2.2 Cấu trúc địa chỉ socket
+- Socket cần được gắn địa chỉ để thực hiện chức năng truyền nhận dữ liệu trên mạng
+- Cấu trúc địa chỉ lưu trữ địa chỉ IP và cổng
+- Các cấu trúc địa chỉ
+    + struct sockaddr => Mô tả địa chỉ nói chung
+    + struct sockaddr_in => mô tả địa chỉ IPv4
+    + struct sockaddr_in6 => mô tả địa chỉ IPv6
+- **Cấu trúc địa chỉ IPv4**: file IPv4_structure.c
+- **Ví dụ khai báo địa chỉ**: file Ex_decla_addr.c
+- **Cấu trúc địa chỉ IPv6**: lưu trữ địa chỉ IPv6 của ứng dụng đích cần nối đến (file IPv6_structure.c)
+
+- **Các hàm chuyển đổi địa chỉ**
+    + cần khai báo tệp <arpa/inet.h>
+    + chuyển đổi địa chỉ IP dạng xâu sang số nguyên 32 bit (IPv4):
+    
+            in_addr_t inet_addr (
+                const char *cp // xâu ký tự chứa địa chỉ IPv4
+            ) => hàm trả về địa chỉ dạng số nguyên, -1 nếu lỗi
+    
+    + chuyển đổi địa chỉ IP dạng xâu sang cấu trúc in_addr:
+
+            int inet_aton (
+                const char *cp, // xâu ký tự chứa địa chỉ IP
+                struct in_addr *inp // cấu trúc địa chỉ IP
+            ) => trả về 1 nếu thành công, 0 nếu lỗi
+    
+    + chuyển đổi địa chỉ từ dạng in_addr sang dạng xâu (IPv4):
+
+            char *inet_ntoa (
+                struct in_addr in // cấu trúc địa chỉ IPv4
+            ) => trả về chuỗi ký tự chứa địa chỉ
+
+    + chuyển đổi từ dạng số sang dạng xâu (cho IPv4 và IPv6):
+
+            const char *inet_ntop (
+                int af, // AF_INET hoặc AF_INET6
+                const void* cp, // con trỏ in_addr hoặc in6_addr
+                char *buf, // xây ký tự chứa địa chỉ
+                socklen_t len // INET_ADDRSTRLEN hoặc INET6_ADDRSTRLEn
+            ) => trả về xâu ký tự chứa địa chỉ, trả nề NULL nếu lỗi
+
+    + chuyển đổi từ dạng xâu sang dạng số (cho IPv4 và IPv6)
+
+            int inet_pton (
+                int af, // AF_INET hoặc AF_INET6
+                const char *cp, // xâu địa chỉ
+                void *buf // con trỏ in_addr hoặc in6_addr
+            ) => trả về 1 nếu thành công, 0 nếu xâu ký tự không hợp lệ, -1 nếu gặp lỗi khác
+
+- **Các hàm chuyển đổi big-endian <-> little-endian**
+    + chuyển đổi little-endian => big-endian (network order)
+
+            // chuyển đổi 4 byte từ little => big
+            uint32_t htonl (uint32_t hostlong)
+            // chuyển đổi 2 byte từ little => big
+            uint16_t htons (uint16_t hostshort)
+    
+    + chuyển đổi big => little (host order)
+
+            // chuyển 4 byte từ big => little
+            uint32_t ntohl (uint32_t netlong)
+            // chuyển 2 byte từ big => little
+            uint16_t ntohs (uint16_t netshort)
+
+- **Phân giải tên miền**
+    + địa chỉ của máy đích được cho dưới dạng tên miền
+    + ứng dụng cần thực hiện phân giải tên miền để có địa chỉ IP thích hợp
+    + hàm **getaddrinfo()** sử dụng để phân giải tên miền ra các địa chỉ IP
+    + cần thêm tệp tiêu đề **netdb.h**
+
+            int getaddrinfo(
+                const char* nodename, // tên miền hoặc địa chỉ cần phân giải
+                const char* servname, // dịch vụ hoặc cổng
+                const struct addrinfo* hints, // cấu trúc gợi ý
+                struct addrinfo** res         // kết quả
+            );
+    + thành công trả về 0, lỗi sử dụng hàm **gai_strerror()** để in ra thông báo lỗi
+    + giải phóng: hàm **freeaddrinfo()**
+    + cấu trúc **addrinfo**: danh sách liên kết đơn chứa thông tin về tên miền tương ứng
+        
+            struct addrinfo {
+                int ai_flags;   // thường là AI_CANONNAME
+                int ai_family;  // thường là AF_INET
+                int ai_socktype;    // loại socket
+                int ai_protocol;    // giao thức giao vận
+                socklen_t ai_addrlen;   // chiều dài của ai_addr
+                char* ai_canonname;     // tên miền
+                struct sockaddr* ai_addr;   // địa chỉ socket đã phân giải
+                struct addrinfo* ai_next;   // con trỏ tới cấu trúc sau
+            }
+    
+    + Sử dụng cấu trúc gợi ý để lọc kết quả
+
+            struct addrinfo hints;
+            // IPv4: AF_INET
+            // IPv6: AF_INET6
+            // Không xác định: AF_UNSPEC
+            hints.ai_family = AF_UNSPEC;
+            // TCP: SOCK_STREAM
+            // UDP: SOCK_DGRAM
+            // Không xác định: 0
+            hints.ai_socktype = SOCK_STREAM
+            // TCP: IPPROTO_TCP
+            // UDP: IPPROTO_UDP
+            // Không xác định: 0
+            hints.ai_protocol: IPPROTO_TCP
 # Dxy
