@@ -236,4 +236,284 @@
             // UDP: IPPROTO_UDP
             // Không xác định: 0
             hints.ai_protocol: IPPROTO_TCP
+
+### 2.3 Ứng dụng TCP server/client
+- Các hàm được sử dụng để tạo ứng dụng server/client hoạt động theo giao thức TCP
+
+- **Hàm socket()**
+    + ứng dụng phải tạo socket trước khi có thể gửi nhận dữ liệu
+
+    + syntax:
+
+            int socket {
+                int domain, // giao thức AF_INET hoặc AF_INET6
+                int type, // kiểu socket SOCK_STREAM hoặc SOCK_DGRAM
+                int protocol, // giao thức IPPROTO_TCP hoặc IPPROTO_UDP
+            } => trả về giá trị mô tả của socket nếu thành công, -1 nếu lỗi (biến errno chứa mã lỗi, cần khai báo errno.h truy cập errno)
+
+            // socket TCP
+            int s1 = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            if (s1 == -1) {
+                printf("Không tạo được socket\n");
+                return 1;
+            }
+
+            // socket UDP
+            int s2 = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+            if(s2 == -1) {
+                printf("Không tạo được socket\n");
+                return 1;
+            }
+
+- **Cách xác định lỗi**
+    + đa số trả về -1 nếu lỗi
+    + biến **errno** trả về mã lỗi xảy ra gần nhất (lib errno.h)
+    + hàm **strerror(int errnum)** trả về chuỗi ký tự mô tả mã lỗi (lib string.h)
+    + hàm perror(const char *s) in ra chuỗi ký tự mô tả mã lỗi gần nhất, s là chuỗi ký tự tiền tố, có thể NULL (lib stdio.h)
+
+- **Hàm bind()**
+    + gắn socket với cấu trúc địa chỉ trong ứng dụng server
+
+    + syntax:
+
+            int bind(
+                int sockfd, // mô tả của socket
+                const struct sockaddr *addr, // con trỏ cấu trúc địa chỉ
+                socklen_t addrlen // độ dài cấu trúc địa chỉ
+            ) => trả về 0 nếu thành công, -1 nếu lỗi
+
+    + khai báo địa chỉ của server = cấu trúc địa chỉ sockaddr_in (IPv4) hoặc sockaddr_in6 (IPv6) => ép kiểu sang sockaddr
+
+- **Hàm listen()**
+    + chuyển socket sang trạng thái chờ kết nối
+
+    + syntax:
+
+            int listen (
+                int fd, // mô tả của socket
+                int n   // chiều dài hàng đợi chờ kết nối
+            ) => trả về 0 nếu thành công, -1 nếu lỗi
+
+    + Example:
+        
+            // listener là socket đã được khởi tạo
+            listen(listener, 5);
+
+- **Hàm accept()**
+    + chấp nhận kết nối đang nằm trong hàng đợi
+
+    + syntax:
+
+            int accept (
+                int sockfd, // socket chờ kết nối đã được khởi tạo
+                struct sockaddr *addr, // con trỏ địa chỉ client
+                socklen_t *addrlen // con trỏ độ dài địa chỉ client
+            ) => trả về mô tả của socket nếu thành công (giá trị kiểu int), -1 nếu lỗi
+
+    + nếu con trỏ **addr** và **addrlen** là NULL, hàm **accept()** sẽ không lấy địa chỉ của client
+
+    + socket trả về được sử dụng để truyền nhận dữ liệu giữa server và client
+
+    + hàm **accept()** cần được gọi nhiều lần để chấp nhận nhiều kết nối
+
+    + Example:
+
+            // s là socket đã được khởi tạo để chờ các kết nối
+            int s1 = accept(s, NULL, NULL);
+            // s1 là socket đại diện cho kết nối giữa server  và client1 
+            // trong TH này không cần quan tâm địa chỉ của client1
+
+            struct sockaddr_int clientAddr;
+            int clientAddrLen = sizeof(clientAddr);
+            int s2 = accept(s, (struct sockaddr *)&clientAddr, &clientAddrLen);
+            // s2 là socket đại diện cho kết nối giữa server và client2
+            // clientAddr chứa dữ liệu địa chỉ của client2 (IP và cổng)
+
+- **Hàm send()**
+    + truyền dữ liệu trên socket
+
+    + syntax:
+
+            ssize_t send (
+                int sockfd, // socket ở trạng thái đã kết nối
+                const void *buf, // buffer chứa dữ liệu cần gửi
+                size_t len, // số byte cần gửi
+                int flags, // cờ quy định cách truyền, mặc định là 0
+            ) => trả về số byte đã gửi nếu thành công, -1 nếu lỗi
+
+    + Example:
+
+            // client là socket đã được chấp nhận bởi server
+            
+            // gửi đi 1 chuỗi ký tự
+            char* str = "Hello Network Programming";
+            int ret = send(client, str, strlen(str), 0);
+            if(ret != -1)
+                printf(" %d bytes are sent", ret);
+
+            // gửi đi 1 mảng dữ liệu
+            char buf[256];
+            for(int i = 0; i < 10; i++)
+                buf[i] = i;
+            ret = send(client, buf, 10, 0);
+
+            // gửi đi biến dữ liệu bất kỳ
+            double d = 1.234;
+            ret = send(client, &d, sizeof(d), 0);
+
+- **Hàm write()**
+    + truyền dữ liệu trên socket
+
+    + syntax:
+
+            ssize_t write (
+                int fd, // socket ở trạng thái đã kết nối
+                const void *buf, // buffer chứa dữ liệu cần gửi
+                size_t n    // số byte cần gửi
+            ) => trả về số byte nếu thành công, -1 nếu lỗi
+
+    + Example: tương tự **send()** chỉ khác không có tham số cuối
+
+- **Hàm recv()**
+    + nhận dữ liệu từ socket
+
+    + syntax:
+
+            ssize_t recv (
+                int sockfd, // socket đã kết nối
+                void *buf, // buffer chứa dữ liệu sẽ nhận được
+                size_t n, // số byte muốn nhận (độ dài của buffer)
+                int flags, // cờ quy định cách nhận, mặc định là 0
+            ) => trả về số byte đã nhận nếu thành công, 0 nếu kết nối bị đóng, -1 nếu lỗi
+
+    + Example:
+
+            // client là socket đã được chấp nhận bởi server
+            char buf[256];
+            // nhận 1 buffer dữ liệu
+            int ret = recv(client, buf, sizeof(buf), 0);
+
+            // nhận biến dữ liệu bất kỳ
+            double d;
+            ret = recv(client, &d, sizeof(d), 0);
+
+            // nhận dữ liệu đến khi ngắt kết nối
+            while(true) {
+                ret = recv(client, buf, sizeof(buf), 0);
+                // ktra điều kiện kết nối
+                if(ret <= 0)
+                    break;
+                // xử lý dữ liệu nhận được
+            }
+
+- **Hàm read()**
+    + nhận dữ liệu từ socket
+
+    + syntax:
+
+            ssize_t read(
+                int fd, // socket đã kết nối
+                void* buf, // buffer chứa dữ liệu sẽ nhận được
+                size_t nbytes // số byte muốn nhận (độ dài của buffer)
+            ) => trả về số byte đã nhận nếu thành công, 0 nếu kết nối bị đóng, -1 nếu lỗi
+
+    + Example: như hàm **recv()** nhưng không có tham số cuối
+
+- **Hàm close()**
+    + đóng kết nối
+
+    + syntax:
+
+            int close(
+                int sockfd // socket cần đóng
+            ) => trả về 0 nếu thành công, -1 nếu lỗi
+
+- **Hàm shutdown()**
+    + đóng kết nối
+
+    + syntax:
+
+            int shutdown(
+                int sockfd, // socket cần đóng kết nối
+                int how, // cách thức đóng
+            ) => 0 nếu thành công, -1 nếu lỗi
+
+    + các giá trị của tham số **how**:
+        + SHUT_RD: không nhận thêm dữ liệu
+        + SHUT_WR: không truyền thêm dữ liệu
+        + SHUT_RDWR: không truyền và nhận thêm dữ liệu
+    
+    + lệnh **shutdown(fd, SHUT_RDWR)** tương đương lệnh close(fd)
+
+- **Hàm connect()**
+    + thiết lập kết nối đến server thông qua socket
+
+    + syntax:
+
+            int connect(
+                int sockfd, // socket đã được tạo
+                const struct sockaddr *addr, // con trỏ địa chỉ server
+                socklen_t addrlen // độ dài cấu trúc địa chỉ
+            ) => trả về 0 nếu thành công, -1 nếu lỗi
+
+    + Địa chỉ server có thể xác định thông qua:
+        + khai báo cấu trúc địa chỉ IP và cổng
+        + phân giải tên miền
+
+    + Example:
+        + Ex_1:
+
+                // khai báo socket
+                int client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+                // khai báo địa chỉ của server
+                struct sockaddr_in addr;
+                addr.sin_family = AF_INET;
+                addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+                addr.sin_port = htons(9000);
+
+                // kết nối đến server
+                int res = connect(client, (struct sockaddr*)&addr, sizeof(addr));
+                if(res == -1) {
+                    printf("Khong ket noi duoc den server");
+                    return 1;
+                }
+
+        + Ex_2:
+
+                // khai báo socket
+                int client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                // Phân giải tên miền thành IP
+                struct addrinfo *res;
+                int ret = getaddrinfo("httpbin.org", "http", NULL, &res);
+                if(ret == -1 || res == NULL) {
+                    printf("Failed to get IP address\n");
+                    return 1;
+                }
+                // kết nối đến server
+                ret = connect(client, res->ai_addr, res->ai_addrlen);
+                if(ret == -1) {
+                    printf("Khong ket noi duoc den server");
+                    return 1;
+                }
+
+- **Truyền dữ liệu sử dụng TCP - Ứng dụng server**
+    + tạo socket qua hàm **socket()**
+    + gắn socket vào một giao diện mạng thông qua hàm bind()
+    + chuyển socket sang trạng thái đợi kết nối qua hàm **listen()**
+    + chấp nhận kết nối từ client thông qua hàm **accept()**
+    + gửi dữ liệu tới client thông qua hàm **send()/write()**
+    + nhận dữ liệu từ client thông qua hàm **recv()/read()**
+    + đóng socket khi việc truyền nhận kết thúc = hàm **close()**
+
+- **Ứng dụng client**
+    + Tạo socket qua hàm **socket()**
+    + điền thông tin về server vào cấu trúc **sockaddr_in**
+    + kết nối tới server qua hàm **connect()**
+    + Gửi dữ liệu tới server thông qua hàm **send()**
+    + nhận dữ liệu từ server thông qua hàm **recv()**
+    + đóng socket khi việc truyền nhận kết thúc bằng hàm **close()**
+
+
+
 # Dxy
