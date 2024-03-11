@@ -514,6 +514,68 @@
     + nhận dữ liệu từ server thông qua hàm **recv()**
     + đóng socket khi việc truyền nhận kết thúc bằng hàm **close()**
 
+### 2.4 Ứng dụng UDP Sender/Receiver
+- Giao thức UDP là giao thức không kết nối (connectionless)
+- Ứng dụng không cần phải thiết lập kết nối trước khi gửi tin
+- Ứng dụng có thể nhận được tin từ bất kỳ máy tính nào trong mạng
+- Trình tự gửi thông tin ở bên gửi như sau:
 
+    + socket() -> Xác định địa chỉ/Phân giải tên miền -> sendto()
+
+- **Ứng dụng UDP Sender - Hàm sendto()**
+    + Gửi dữ liệu qua socket theo giao thức UDP
+    + syntax:
+
+            ssize_t sendto(
+                int sockfd, // socket đã được khởi tạo
+                const void *buf, // buffer chứa dữ liệu cần gửi
+                size_t len, // số byte cần gửi
+                int flags, // cờ quy định cách gửi, mặc định là 0
+                const struct sockaddr *addr, // con trỏ địa chỉ bên nhận
+                socklen_t addr_len // độ dài cấu trúc địa chỉ
+            ) => hàm trả về số byte đã gửi nếu thành công, -1 nếu lỗi
+
+- **Ứng dụng UDP Receiver**
+    + Trình tự nhận thông tin ở bên nhận như sau:
+
+        + socket() -> bind() -> recvfrom()
+
+- **Ứng dụng UDP Receiver - Hàm recvfrom()**
+    + nhận dữ liệu qua socket theo giao thức UDP
+    + syntax:
+
+            ssize_t recvfrom(
+                int sockfd, // socket đã khởi tạo
+                void *buf, // buf chứa dữ liệu nhận được
+                size_t len, // số byte muốn nhận (kích thước buffer)
+                int flags, // cờ quy định cách nhận, mặc định là 0
+                struct sockaddr *src_addr, // con trỏ địa chỉ bên gửi
+                socklen_t *addr_len // con trỏ độ dài địa chỉ
+            ) => trả về số byte đã nhận nếu thành công, -1 nếu lỗi
+
+- **Chú ý**
+    + lệnh nhận dữ liệu
+
+            recv(client, buf, sizeof(buf), 0)
+            recv(client, buf, sizeoff(buf), 0, NULL, NULL)
+            => 2 lệnh này tương đương, có thể sử dụng thay thế
+    
+    + lệnh truyền dữ liệu
+
+            send(client, buf, strlen(buf), 0)
+            sendto(client, buf, strlen(buf), 0, NULL, 0)
+            => 2 lệnh này tương đương, có thể sử dụng thay thế
+
+- **Kịch bản kiểm thử giao thức hướng dòng - TCP**
+    + Bên nhận tạm dừng chương trình trước khi nhận dữ liệu
+    + Bên truyền thực hiện truyền 2 lần liên tiếp
+    + Bên nhận tiếp tục chương trình và sẽ nhận được cả 2 gói tin trong một lần nhận
+
+- **Kịch bản kiểm thử giao thức hướng thông điệp - UDP**
+    + Bên nhận tạm dừng chương trình trước khi nhận dữ liệu
+    + Bên truyền thực hiện truyền 2 lần liên tiếp
+    + Bên nhận tiếp tục chương trình và sẽ nhận được 2 gói tin trong 2 lần nhận
+
+- **Bài tập**
 
 # Dxy
